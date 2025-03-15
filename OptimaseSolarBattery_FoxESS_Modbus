@@ -1,0 +1,192 @@
+blueprint:
+  name: Optimize Solar & Battery via FoxESSv17
+  description: >
+    Automates mode switching based on electricity rates while ensuring stability
+    to prevent frequent switching.
+  domain: automation
+  input:
+    stable_rate:
+      name: Stable Octopus Rate Sensor
+      description: Sensor providing the current electricity rate.
+      selector:
+        entity:
+          domain: sensor
+    next_rate:
+      name: Next Rate Sensor
+      description: Sensor providing the next electricity rate.
+      selector:
+        entity:
+          domain: sensor
+    pv_power:
+      name: PV Power Sensor
+      description: Sensor for photovoltaic power output.
+      selector:
+        entity:
+          domain: sensor
+    load_power:
+      name: Load Power Sensor
+      description: Sensor for current power load.
+      selector:
+        entity:
+          domain: sensor
+    battery_soc:
+      name: Battery SOC Sensor
+      description: Sensor for battery state of charge.
+      selector:
+        entity:
+          domain: sensor
+    charging_source:
+      name: Charging Source Sensor
+      description: Sensor for the current charging source.
+      selector:
+        entity:
+          domain: sensor
+    on_solar_battery_rate:
+      name: Solar/Battery Mode Rate (pence)
+      description: Rate at which to switch to solar/battery mode.
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "p"
+    on_charge_rate:
+      name: Charging Mode Rate (pence)
+      description: Rate at which to start battery charging.
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "p"
+    min_solar_battery_soc:
+      name: Min Solar/Battery SOC (%)
+      description: Minimum battery SOC for solar/battery mode.
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    max_charge_soc:
+      name: Max Charge SOC (%)
+      description: Maximum battery SOC for charging mode.
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    force_solar_script:
+      name: Force Solar Mode Script
+      description: Script to activate solar mode.
+      selector:
+        entity:
+          domain: script
+    force_grid_script:
+      name: Force Grid Mode Script
+      description: Script to activate grid mode.
+      selector:
+        entity:
+          domain: script
+    force_charge_script:
+      name: Force Charge Mode Script
+      description: Script to activate charge mode.
+      selector:
+        entity:
+          domain: script
+    notification_target:
+      name: Notification Target
+      description: Device to send notifications to.
+      selector:
+        entity:
+          domain: notify
+
+trigger:
+  - platform: state
+    entity_id: !input stable_rate
+  - platform: state
+    entity_id: !input next_rate
+  - platform: state
+    entity_id: !input pv_power
+  - platform: state
+    entity_id: !input load_power
+  - platform: state
+    entity_id: !input battery_soc
+  - platform: state
+    entity_id: !input charging_source
+
+condition:
+  - condition: template
+    value_template: >
+      {{ not is_state( states( !input battery_soc ), 'unknown') and 
+         not is_state( states( !input battery_soc ), 'unavailable') }}
+  - condition: template
+    value_template: >
+      {{ not is_state( states( !input charging_source ), 'unknown') and 
+         not is_state( states( !input charging_source ), 'unavailable') }}
+
+action:
+  - variables:
+      rate: "{{ states( !input stable_rate ) | float }}"
+      next_rate: "{{ states( !input next_rate ) | float(0) }}"
+      on_solar_battery_rate: "{{ ( !input on_solar_battery_rate ) / 100 }}"
+      on_charge_rate: "{{ ( !input on_charge_rate ) / 100 }}"
+      pv_power: "{{ states( !input pv_power ) | float }}"
+      load_power: "{{ states( !input load_power ) | float }}"
+      battery_soc: "{{ states( !input battery_soc ) | float(50) }}"
+      min_solar_battery_soc: "{{ !input min_solar_battery_soc }}"
+      max_charge_soc: "{{ !input max_charge_soc }}"
+      charging_source: "{{ states( !input charging_source ) | lower }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: |
+              {{ 
+                rate > on_solar_battery_rate and rate > 0 and 
+                (pv_power > load_power or battery_soc > min_solar_battery_soc) and 
+                charging_source not in ['solar', 'solar_use', 'battery']
+              }}
+        sequence:
+          - service: script.turn_on
+            target:
+              entity_id: !input force_solar_script
+          - service: notify.send_message
+            data:
+              title: "Solar Optimisation"
+              message: "✅ Switching to Solar Mode: Rate {{ rate }}p > {{ on_solar_battery_rate }}p"
+              target: !input notification_target
+
+      - conditions:
+          - condition: template
+            value_template: |
+              {{ 
+                rate <= on_solar_battery_rate and rate > 0 and 
+                charging_source not in ['grid', 'grid_use']
+              }}
+        sequence:
+          - service: script.turn_on
+            target:
+              entity_id: !input force_grid_script
+          - service: notify.send_message
+            data:
+              title: "Solar Optimisation"
+              message: "⚡ Switching to Grid Mode: Rate {{ rate }}p ≤ {{ on_solar_battery_rate }}p"
+              target: !input notification_target
+
+      - conditions:
+          - condition: template
+            value_template: |
+              {{ 
+                rate < on_charge_rate and rate > 0 and 
+                battery_soc < max_charge_soc and 
+                charging_source not in ['charging', 'charge']
+              }}
+        sequence:
+          - service: script.turn_on
+            target:
+              entity_id: !input force_charge_script
+          - service: notify.send_message
+            data:
+              title: "Battery Charging"
+              message: "🔋 Charging Started: Rate {{ rate }}p < Charge Rate {{ on_charge_rate }}p"
+              target: !input notification_target
+
+mode: restart
