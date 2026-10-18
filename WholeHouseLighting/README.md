@@ -5,7 +5,7 @@ Lighting for every room, driven by occupancy. It takes into account whether you 
 | File | What it is |
 |---|---|
 | `whole_house_lighting.yaml` | Blueprint for one room. Make one automation from it per room. |
-| `whole_house_lighting_package.yaml` | Package with the helpers plus an automation for each room (Lounge, Dining, Hallway, Landing/Stairs, Office, Bedroom, Spare, Junk, Toilet). |
+| `whole_house_lighting_package.yaml` | Package with the override helper plus an automation for each room (Lounge, Dining, Hallway, Cupboard, Landing/Stairs, Office, Bedroom, Spare, Junk, Toilet). |
 
 ## Behaviour
 
@@ -35,20 +35,21 @@ If any light in a room is already on, motion won't change its brightness, so lig
    homeassistant:
      packages: !include_dir_named packages
    ```
-3. **Check the entity IDs.** They were derived from entity names. Lines marked `TODO` are motion or ESP32 presence sensors whose entities were not visible, so their IDs are guesses. Landing and Stairs had no sensor visible at all.
-4. Restart, or reload Automations and Input Booleans.
+3. **Check the entity IDs.** They were derived from the entity names, especially `binary_sensor.robsiphone_focus`.
+4. **Disable "Stairs Lamp On at Sunset".** The Landing & Stairs automation now controls the stairs lamp.
+5. Restart, or reload Automations and Input Booleans.
 
 Alternatively, skip the package and create each room from the blueprint in the UI (Settings → Automations → Create → Use blueprint).
 
-## iPhone Sleep focus → Home Assistant
+## iPhone Sleep focus
 
-The Companion app's `binary_sensor.<phone>_focus` is `on` for *any* focus mode, so it can't tell Sleep apart from Work. Use an iOS Shortcuts automation to set `input_boolean.rob_sleep_focus` instead:
+Sleep mode is driven by the Companion app's `binary_sensor.robsiphone_focus`. That sensor is `on` for *any* focus, which is fine here because Focus is only used for Sleep.
 
-1. Open Shortcuts → Automation → **+** → **Sleep** (under Focus) → *When turning on* → *Run immediately*.
-2. Add the Home Assistant action **Perform action**: `input_boolean.turn_on` with entity `input_boolean.rob_sleep_focus`.
-3. Create a second automation for *When turning off* that runs `input_boolean.turn_off`.
+If you later add other focus modes (Work, Driving…), switch to an iOS Shortcuts automation instead:
 
-If Sleep is the only focus you ever use, you could point `sleep_entity` at `binary_sensor.<phone>_focus` directly instead.
+1. Create an `input_boolean` (e.g. `rob_sleep_focus`).
+2. In Shortcuts → Automation, set **Sleep** → *When turning on* to run the Home Assistant action `input_boolean.turn_on` on it. Add a second automation for *When turning off* that runs `input_boolean.turn_off`.
+3. Point `sleep_entity` in the package at the input_boolean.
 
 ## Tuning per room
 
