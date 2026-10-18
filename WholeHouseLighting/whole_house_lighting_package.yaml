@@ -35,10 +35,6 @@ automation:
           - binary_sensor.lounge_motion_occupancy
           - binary_sensor.lounge_presence_occupancy
           - binary_sensor.lounge_rear_window_motion
-          - binary_sensor.presence_sensor_fp2_f76d_presence_sensor_1
-          - binary_sensor.presence_sensor_fp2_f76d_presence_sensor_2
-          - binary_sensor.presence_sensor_fp2_f76d_presence_sensor_3
-          - binary_sensor.presence_sensor_fp2_f76d_presence_sensor_5
         lux_sensor: sensor.lounge_presence_illuminance
         vacancy_timeout: 10
 
