@@ -24,7 +24,7 @@ automation:
         <<: &common
           persons: [person.rob]
           # iPhone Focus is only used for Sleep, so it can drive sleep mode directly
-          sleep_entity: binary_sensor.robsiphone_focus
+          sleep_entity: binary_sensor.rob_siphone_focus
           override_entity: input_boolean.lighting_automation_override
         lights:
           - light.lounge_lights
