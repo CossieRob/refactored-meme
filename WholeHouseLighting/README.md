@@ -36,7 +36,7 @@ If any light in a room is already on, motion won't change its brightness, so lig
    homeassistant:
      packages: !include_dir_named packages
    ```
-3. **Check the entity IDs.** They were derived from the entity names, especially `binary_sensor.robsiphone_focus`.
+3. **Check the entity IDs.** They were derived from the entity names (the focus sensor, `binary_sensor.rob_siphone_focus`, is confirmed).
 4. **Disable "Stairs Lamp On at Sunset".** The Landing & Stairs automation now controls the stairs lamp.
 5. Restart, or reload Automations and Input Booleans.
 
@@ -44,7 +44,7 @@ Alternatively, skip the package and create each room from the blueprint in the U
 
 ## iPhone Sleep focus
 
-Sleep mode is driven by the Companion app's `binary_sensor.robsiphone_focus`. That sensor is `on` for *any* focus, which is fine here because Focus is only used for Sleep.
+Sleep mode is driven by the Companion app's `binary_sensor.rob_siphone_focus`. That sensor is `on` for *any* focus, which is fine here because Focus is only used for Sleep.
 
 If you later add other focus modes (Work, Driving…), switch to an iOS Shortcuts automation instead:
 
