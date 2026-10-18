@@ -50,6 +50,15 @@ blueprint:
       default: false
       selector:
         boolean:
+    wake_lights:
+      name: Turn on when sleep ends
+      description: >
+        When sleep mode ends, turn the lights on if the room is occupied and dark
+        (useful for bedrooms, where presence stays on all night so no new
+        occupancy event fires on waking).
+      default: false
+      selector:
+        boolean:
     lux_sensor:
       name: Lux sensor (optional)
       description: Illuminance sensor for this room. If empty or unavailable, sun elevation is used instead.
@@ -243,6 +252,7 @@ variables:
   lights: !input lights
   occupancy_sensors: !input occupancy_sensors
   is_bedroom: !input is_bedroom
+  wake_lights: !input wake_lights
   override_entity: !input override_entity
   night_elevation: !input night_elevation
   day_brightness: !input day_brightness
@@ -321,6 +331,18 @@ actions:
           - action: light.turn_on
             target:
               entity_id: "{{ lights_on }}"
+            data: "{{ light_data }}"
+
+      # Woke up in an occupied, dark room with the lights off -> turn on
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id == 'sleep_off' and wake_lights and not sleeping
+                 and anyone_home and occupied and dark and lights_on | count == 0 }}
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ lights }}"
             data: "{{ light_data }}"
 
       # Woke up, or sun moved to another tier -> restore normal level on lit lights
