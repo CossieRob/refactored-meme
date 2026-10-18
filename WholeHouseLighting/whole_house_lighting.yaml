@@ -182,25 +182,28 @@ blueprint:
 
 mode: queued
 max: 10
-max_exceeded: silent
+max_exceeded: warning
 
 trigger_variables:
+  occupancy_sensors: !input occupancy_sensors
   lux_sensor: !input lux_sensor
   lux_threshold: !input lux_threshold
   elevation_threshold: !input elevation_threshold
   persons: !input persons
   sleep_entity: !input sleep_entity
   sleep_state: !input sleep_state
+  override_entity: !input override_entity
 
 triggers:
   - trigger: state
     id: occupied
     entity_id: !input occupancy_sensors
     to: "on"
-  - trigger: state
+  # Aggregate vacancy: the timer restarts whenever any sensor turns on, so the
+  # room always gets the full timeout after the last sensor clears
+  - trigger: template
     id: vacant
-    entity_id: !input occupancy_sensors
-    to: "off"
+    value_template: "{{ occupancy_sensors | select('is_state', 'on') | list | count == 0 }}"
     for:
       minutes: !input vacancy_timeout
   # Room became dark (lux falls below threshold, or sun sets below threshold
@@ -222,10 +225,27 @@ triggers:
     value_template: >
       {{ sleep_entity != '' and not is_state(sleep_entity, sleep_state)
          and states(sleep_entity) not in ['unknown', 'unavailable'] }}
+  # Away only when every person's location is known and none are home
   - trigger: template
     id: away
     value_template: >
-      {{ persons | count > 0 and persons | select('is_state', 'home') | list | count == 0 }}
+      {{ persons | count > 0
+         and persons | select('is_state', 'home') | list | count == 0
+         and persons | select('is_state', ['unknown', 'unavailable']) | list | count == 0 }}
+  # Situations where the room should be re-evaluated from its current state
+  - trigger: template
+    id: reconcile
+    value_template: >
+      {{ persons | count > 0 and persons | select('is_state', 'home') | list | count > 0 }}
+  - trigger: template
+    id: reconcile
+    value_template: "{{ override_entity != '' and is_state(override_entity, 'off') }}"
+  - trigger: homeassistant
+    id: reconcile
+    event: start
+  - trigger: event
+    id: reconcile
+    event_type: automation_reloaded
   # Sun crossing a brightness tier boundary, in either direction
   - trigger: numeric_state
     id: tier_change
@@ -251,9 +271,15 @@ triggers:
 variables:
   lights: !input lights
   occupancy_sensors: !input occupancy_sensors
+  lux_sensor: !input lux_sensor
+  lux_threshold: !input lux_threshold
+  elevation_threshold: !input elevation_threshold
+  persons: !input persons
+  sleep_entity: !input sleep_entity
+  sleep_state: !input sleep_state
+  override_entity: !input override_entity
   is_bedroom: !input is_bedroom
   wake_lights: !input wake_lights
-  override_entity: !input override_entity
   night_elevation: !input night_elevation
   day_brightness: !input day_brightness
   twilight_brightness: !input twilight_brightness
@@ -265,8 +291,11 @@ variables:
   night_kelvin: !input night_kelvin
   transition: !input transition
   sleeping: "{{ sleep_entity != '' and is_state(sleep_entity, sleep_state) }}"
+  # Unknown/unavailable person states count as home, so a tracker outage never
+  # switches the house into away behaviour
   anyone_home: >
-    {{ persons | count == 0 or persons | select('is_state', 'home') | list | count > 0 }}
+    {{ persons | count == 0
+       or persons | select('is_state', ['home', 'unknown', 'unavailable']) | list | count > 0 }}
   occupied: "{{ occupancy_sensors | select('is_state', 'on') | list | count > 0 }}"
   lights_on: "{{ lights | select('is_state', 'on') | list }}"
   dark: >
@@ -299,11 +328,13 @@ conditions:
 
 actions:
   - choose:
-      # Occupancy detected, or room got dark while occupied -> turn on
+      # Occupancy detected, room got dark while occupied, or re-evaluation of an
+      # occupied dark room -> turn on
       - conditions:
           - condition: template
             value_template: >
-              {{ (trigger.id == 'occupied' or (trigger.id == 'became_dark' and occupied))
+              {{ (trigger.id == 'occupied'
+                  or (trigger.id in ['became_dark', 'reconcile'] and occupied))
                  and anyone_home and dark and lights_on | count == 0
                  and not (sleeping and is_bedroom) }}
         sequence:
@@ -312,10 +343,16 @@ actions:
               entity_id: "{{ lights }}"
             data: "{{ light_data }}"
 
-      # Every sensor clear for the timeout -> turn off
+      # Every sensor clear for the timeout, or re-evaluation of an empty room
+      # (only once all sensors report, so a restart doesn't darken an occupied room) -> off
       - conditions:
           - condition: template
-            value_template: "{{ trigger.id == 'vacant' and not occupied and lights_on | count > 0 }}"
+            value_template: >
+              {{ (trigger.id == 'vacant'
+                  or (trigger.id == 'reconcile'
+                      and occupancy_sensors | select('is_state', ['unknown', 'unavailable'])
+                          | list | count == 0))
+                 and not occupied and lights_on | count > 0 }}
         sequence:
           - action: light.turn_off
             target:
@@ -345,12 +382,13 @@ actions:
               entity_id: "{{ lights }}"
             data: "{{ light_data }}"
 
-      # Woke up, or sun moved to another tier -> restore normal level on lit lights
+      # Woke up (non-bedroom), or sun moved to another tier -> restore normal
+      # level on lit lights
       - conditions:
           - condition: template
             value_template: >
-              {{ trigger.id in ['sleep_off', 'tier_change'] and not sleeping
-                 and lights_on | count > 0 }}
+              {{ ((trigger.id == 'sleep_off' and not is_bedroom) or trigger.id == 'tier_change')
+                 and not sleeping and lights_on | count > 0 }}
         sequence:
           - action: light.turn_on
             target:
@@ -360,7 +398,7 @@ actions:
       # Nobody home -> turn everything off
       - conditions:
           - condition: template
-            value_template: "{{ trigger.id == 'away' and lights_on | count > 0 }}"
+            value_template: "{{ trigger.id == 'away' and not anyone_home and lights_on | count > 0 }}"
         sequence:
           - action: light.turn_off
             target:

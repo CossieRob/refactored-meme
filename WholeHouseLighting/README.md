@@ -16,6 +16,7 @@ Lighting for every room, driven by occupancy. It takes into account whether you 
 | Asleep (Sleep focus on) | Lights that are on dim to sleep brightness (5%). Motion turns them on at 5%. | Left alone. Motion never turns them on. |
 | Sleep focus ends | Lights that are on go back to normal brightness | If you're in the room, it's dark and the lights are off, they turn on (`wake_lights`) |
 | Nobody home | Off, and motion is ignored | Off, and motion is ignored |
+| You arrive home, the override is switched off, or Home Assistant restarts | The room is re-checked: lights turn on if it's occupied and dark, or off if it's empty | Same |
 | Sun crosses a level boundary | Lights that are on adjust brightness and colour temperature | Same |
 | Override switch on | Automation does nothing | Same |
 
