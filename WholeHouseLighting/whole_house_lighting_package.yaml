@@ -33,6 +33,7 @@ automation:
           - light.lounge_rear_lamp
         occupancy_sensors:
           - binary_sensor.lounge_motion_occupancy
+          - binary_sensor.lounge_presence_occupancy
           - binary_sensor.lounge_rear_window_motion
           - binary_sensor.presence_sensor_fp2_f76d_presence_sensor_1
           - binary_sensor.presence_sensor_fp2_f76d_presence_sensor_2
@@ -48,7 +49,9 @@ automation:
       input:
         <<: *common
         lights: [light.dining_room_light]
-        occupancy_sensors: [binary_sensor.dining_room_motion]
+        occupancy_sensors:
+          - binary_sensor.dining_room_motion
+          - binary_sensor.dining_room_presence_occupancy
         lux_sensor: sensor.dining_room_presence_illuminance
         vacancy_timeout: 5
 
@@ -99,6 +102,7 @@ automation:
         occupancy_sensors:
           - binary_sensor.office_motion
           - binary_sensor.office_motion_occupancy
+          - binary_sensor.desk_presence_occupancy
           - binary_sensor.office_window_motion
           - binary_sensor.loft_motion
         lux_sensor: sensor.desk_presence_illuminance
@@ -112,7 +116,9 @@ automation:
         <<: *common
         is_bedroom: true
         lights: [light.bedroom_light, light.bedroom_lamp]
-        occupancy_sensors: [binary_sensor.bedroom_motion_occupancy]
+        occupancy_sensors:
+          - binary_sensor.bedroom_motion_occupancy
+          - binary_sensor.bedroom_presence_occupancy
         lux_sensor: sensor.bedroom_presence_illuminance
         night_brightness: 30
         vacancy_timeout: 10
