@@ -1,0 +1,153 @@
+# Whole House Lighting - package
+#
+# Drop into config/packages/ (with `homeassistant: packages: !include_dir_named packages`
+# in configuration.yaml) and copy the blueprint to
+# config/blueprints/automation/cossierob/whole_house_lighting.yaml
+#
+# Entity IDs below were derived from the entity names in Home Assistant; confirm
+# them in Settings -> Devices & services -> Entities before loading.
+#
+# Disable the existing "Stairs Lamp On at Sunset" automation, otherwise it will
+# fight the Landing & Stairs automation below.
+
+input_boolean:
+  lighting_automation_override:
+    name: Lighting Automation Override
+    icon: mdi:lightbulb-off-outline
+
+automation:
+  - id: whole_house_lighting_lounge
+    alias: Lighting - Lounge
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: &common
+          persons: [person.rob]
+          # iPhone Focus is only used for Sleep, so it can drive sleep mode directly
+          sleep_entity: binary_sensor.robsiphone_focus
+          override_entity: input_boolean.lighting_automation_override
+        lights:
+          - light.lounge_lights
+          - light.lounge_lamps
+          - light.lounge_reading_lamp
+          - light.lounge_rear_lamp
+        occupancy_sensors:
+          - binary_sensor.lounge_motion_occupancy
+          - binary_sensor.lounge_presence_occupancy
+          - binary_sensor.lounge_rear_window_motion
+        lux_sensor: sensor.lounge_presence_illuminance
+        vacancy_timeout: 10
+
+  - id: whole_house_lighting_dining_room
+    alias: Lighting - Dining Room
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.dining_room_light]
+        occupancy_sensors:
+          - binary_sensor.dining_room_motion
+          - binary_sensor.dining_room_presence_occupancy
+        lux_sensor: sensor.dining_room_presence_illuminance
+        vacancy_timeout: 5
+
+  - id: whole_house_lighting_hallway
+    alias: Lighting - Hallway
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.hallway_light]
+        occupancy_sensors:
+          - binary_sensor.hallway_motion
+          - binary_sensor.hallway_motion_occupancy
+        vacancy_timeout: 2
+
+  - id: whole_house_lighting_cupboard
+    alias: Lighting - Cupboard
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.cupboard_light]
+        occupancy_sensors: [binary_sensor.cupboard_motion_occupancy]
+        # No window: treat as dark unless the sun is very high
+        elevation_threshold: 30
+        day_brightness: 100
+        twilight_brightness: 100
+        night_brightness: 60
+        vacancy_timeout: 1
+
+  - id: whole_house_lighting_landing_stairs
+    alias: Lighting - Landing & Stairs
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.landing_light, light.stairs_lamp]
+        occupancy_sensors: [binary_sensor.landing_motion_occupancy]
+        vacancy_timeout: 2
+
+  - id: whole_house_lighting_office
+    alias: Lighting - Office
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.office_light]
+        occupancy_sensors:
+          - binary_sensor.office_motion
+          - binary_sensor.office_motion_occupancy
+          - binary_sensor.desk_presence_occupancy
+          - binary_sensor.office_window_motion
+          - binary_sensor.loft_motion
+        lux_sensor: sensor.desk_presence_illuminance
+        vacancy_timeout: 10
+
+  - id: whole_house_lighting_bedroom
+    alias: Lighting - Bedroom
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        is_bedroom: true
+        wake_lights: true
+        lights: [light.bedroom_light, light.bedroom_lamp]
+        occupancy_sensors:
+          - binary_sensor.bedroom_motion_occupancy
+          - binary_sensor.bedroom_presence_occupancy
+        lux_sensor: sensor.bedroom_presence_illuminance
+        night_brightness: 30
+        vacancy_timeout: 10
+
+  - id: whole_house_lighting_spare_room
+    alias: Lighting - Spare Room
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.spare_room_light]
+        occupancy_sensors: [binary_sensor.spare_room_motion_occupancy]
+        vacancy_timeout: 5
+
+  - id: whole_house_lighting_junk_room
+    alias: Lighting - Junk Room
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.junk_room_light]
+        occupancy_sensors: [binary_sensor.junk_room_motion_occupancy]
+        vacancy_timeout: 3
+
+  - id: whole_house_lighting_toilet
+    alias: Lighting - Toilet
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.toilet_light]
+        occupancy_sensors: [binary_sensor.toilet_motion_occupancy]
+        # Small room with little daylight: treat as dark until the sun is well up
+        elevation_threshold: 15
+        vacancy_timeout: 3

@@ -1,0 +1,405 @@
+blueprint:
+  name: Whole House Lighting - Room Controller
+  description: >
+    Occupancy-driven lighting for one room. Create one automation from this
+    blueprint per room; together they form the whole-house lighting system.
+
+    - Turns lights on when any motion/presence sensor detects occupancy and the
+      room is dark (lux sensor if available, otherwise sun elevation).
+    - Turns lights off once every sensor has been clear for the timeout.
+    - Brightness and colour temperature follow the sun elevation
+      (day / twilight / night).
+    - Sleep mode (e.g. iPhone Sleep focus): non-bedroom rooms are dimmed to the
+      sleep brightness and only come on at that level; bedrooms are left alone
+      and never switched on automatically while you sleep.
+    - Away: lights are switched off when nobody is home and motion is ignored.
+  domain: automation
+  input:
+    lights:
+      name: Lights
+      description: Lights controlled in this room.
+      selector:
+        entity:
+          domain: light
+          multiple: true
+    occupancy_sensors:
+      name: Motion & presence sensors
+      description: Any motion, occupancy or presence binary sensors in this room.
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class:
+            - motion
+            - occupancy
+            - presence
+          multiple: true
+    vacancy_timeout:
+      name: Vacancy timeout
+      description: Minutes all sensors must be clear before the lights turn off.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 120
+          unit_of_measurement: min
+    is_bedroom:
+      name: This room is a bedroom
+      description: >
+        When on, sleep mode does not dim this room and motion will not turn the
+        lights on while you are asleep.
+      default: false
+      selector:
+        boolean:
+    wake_lights:
+      name: Turn on when sleep ends
+      description: >
+        When sleep mode ends, turn the lights on if the room is occupied and dark
+        (useful for bedrooms, where presence stays on all night so no new
+        occupancy event fires on waking).
+      default: false
+      selector:
+        boolean:
+    lux_sensor:
+      name: Lux sensor (optional)
+      description: Illuminance sensor for this room. If empty or unavailable, sun elevation is used instead.
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
+    lux_threshold:
+      name: Lux threshold
+      description: Lights only turn on when illuminance is below this value.
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 1000
+          unit_of_measurement: lx
+    elevation_threshold:
+      name: Sun elevation threshold
+      description: >
+        Without a usable lux sensor, the room counts as dark when the sun is below
+        this elevation. This is also where "day" brightness ends and "twilight" begins.
+      default: 5
+      selector:
+        number:
+          min: -18
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°"
+    night_elevation:
+      name: Night sun elevation
+      description: Below this elevation, night brightness is used (-6° is the end of civil twilight).
+      default: -6
+      selector:
+        number:
+          min: -18
+          max: 0
+          step: 0.5
+          unit_of_measurement: "°"
+    persons:
+      name: People
+      description: When none of these people are home, lights turn off and motion is ignored.
+      default: []
+      selector:
+        entity:
+          domain: person
+          multiple: true
+    sleep_entity:
+      name: Sleep entity (optional)
+      description: >
+        Entity that shows you are asleep, e.g. an input_boolean that an iOS
+        Shortcuts automation sets when the Sleep focus turns on.
+      default: ""
+      selector:
+        entity:
+          domain:
+            - input_boolean
+            - binary_sensor
+            - sensor
+            - input_select
+    sleep_state:
+      name: Sleep state
+      description: State of the sleep entity that means "asleep".
+      default: "on"
+      selector:
+        text:
+    override_entity:
+      name: Override switch (optional)
+      description: While this input_boolean is on, the automation does nothing.
+      default: ""
+      selector:
+        entity:
+          domain: input_boolean
+    day_brightness:
+      name: Day brightness
+      default: 100
+      selector:
+        number: { min: 1, max: 100, unit_of_measurement: "%" }
+    twilight_brightness:
+      name: Twilight brightness
+      default: 80
+      selector:
+        number: { min: 1, max: 100, unit_of_measurement: "%" }
+    night_brightness:
+      name: Night brightness
+      default: 50
+      selector:
+        number: { min: 1, max: 100, unit_of_measurement: "%" }
+    sleep_brightness:
+      name: Sleep brightness
+      description: Brightness used in non-bedroom rooms while you are asleep.
+      default: 5
+      selector:
+        number: { min: 1, max: 100, unit_of_measurement: "%" }
+    use_color_temp:
+      name: Set colour temperature
+      description: Turn off if this room only has dimmable (white-only) bulbs.
+      default: true
+      selector:
+        boolean:
+    day_kelvin:
+      name: Day colour temperature
+      default: 4000
+      selector:
+        color_temp: { unit: kelvin, min: 2000, max: 6500 }
+    twilight_kelvin:
+      name: Twilight colour temperature
+      default: 3000
+      selector:
+        color_temp: { unit: kelvin, min: 2000, max: 6500 }
+    night_kelvin:
+      name: Night / sleep colour temperature
+      default: 2200
+      selector:
+        color_temp: { unit: kelvin, min: 2000, max: 6500 }
+    transition:
+      name: Transition
+      default: 2
+      selector:
+        number: { min: 0, max: 30, unit_of_measurement: s }
+
+mode: queued
+max: 10
+max_exceeded: warning
+
+trigger_variables:
+  occupancy_sensors: !input occupancy_sensors
+  lux_sensor: !input lux_sensor
+  lux_threshold: !input lux_threshold
+  elevation_threshold: !input elevation_threshold
+  persons: !input persons
+  sleep_entity: !input sleep_entity
+  sleep_state: !input sleep_state
+  override_entity: !input override_entity
+
+triggers:
+  - trigger: state
+    id: occupied
+    entity_id: !input occupancy_sensors
+    to: "on"
+  # Aggregate vacancy: the timer restarts whenever any sensor turns on, so the
+  # room always gets the full timeout after the last sensor clears
+  - trigger: template
+    id: vacant
+    value_template: "{{ occupancy_sensors | select('is_state', 'on') | list | count == 0 }}"
+    for:
+      minutes: !input vacancy_timeout
+  # Room became dark (lux falls below threshold, or sun sets below threshold
+  # when no usable lux reading exists)
+  - trigger: template
+    id: became_dark
+    value_template: >
+      {% set lux = states(lux_sensor) if lux_sensor else 'unknown' %}
+      {% if lux | is_number %}
+        {{ lux | float < lux_threshold | float }}
+      {% else %}
+        {{ state_attr('sun.sun', 'elevation') | float(90) < elevation_threshold | float }}
+      {% endif %}
+  - trigger: template
+    id: sleep_on
+    value_template: "{{ sleep_entity != '' and is_state(sleep_entity, sleep_state) }}"
+  - trigger: template
+    id: sleep_off
+    value_template: >
+      {{ sleep_entity != '' and not is_state(sleep_entity, sleep_state)
+         and states(sleep_entity) not in ['unknown', 'unavailable'] }}
+  # Away only when every person's location is known and none are home
+  - trigger: template
+    id: away
+    value_template: >
+      {{ persons | count > 0
+         and persons | select('is_state', 'home') | list | count == 0
+         and persons | select('is_state', ['unknown', 'unavailable']) | list | count == 0 }}
+  # Situations where the room should be re-evaluated from its current state
+  - trigger: template
+    id: reconcile
+    value_template: >
+      {{ persons | count > 0 and persons | select('is_state', 'home') | list | count > 0 }}
+  - trigger: template
+    id: reconcile
+    value_template: "{{ override_entity != '' and is_state(override_entity, 'off') }}"
+  - trigger: homeassistant
+    id: reconcile
+    event: start
+  - trigger: event
+    id: reconcile
+    event_type: automation_reloaded
+  # Sun crossing a brightness tier boundary, in either direction
+  - trigger: numeric_state
+    id: tier_change
+    entity_id: sun.sun
+    attribute: elevation
+    below: !input elevation_threshold
+  - trigger: numeric_state
+    id: tier_change
+    entity_id: sun.sun
+    attribute: elevation
+    above: !input elevation_threshold
+  - trigger: numeric_state
+    id: tier_change
+    entity_id: sun.sun
+    attribute: elevation
+    below: !input night_elevation
+  - trigger: numeric_state
+    id: tier_change
+    entity_id: sun.sun
+    attribute: elevation
+    above: !input night_elevation
+
+variables:
+  lights: !input lights
+  occupancy_sensors: !input occupancy_sensors
+  lux_sensor: !input lux_sensor
+  lux_threshold: !input lux_threshold
+  elevation_threshold: !input elevation_threshold
+  persons: !input persons
+  sleep_entity: !input sleep_entity
+  sleep_state: !input sleep_state
+  override_entity: !input override_entity
+  is_bedroom: !input is_bedroom
+  wake_lights: !input wake_lights
+  night_elevation: !input night_elevation
+  day_brightness: !input day_brightness
+  twilight_brightness: !input twilight_brightness
+  night_brightness: !input night_brightness
+  sleep_brightness: !input sleep_brightness
+  use_color_temp: !input use_color_temp
+  day_kelvin: !input day_kelvin
+  twilight_kelvin: !input twilight_kelvin
+  night_kelvin: !input night_kelvin
+  transition: !input transition
+  sleeping: "{{ sleep_entity != '' and is_state(sleep_entity, sleep_state) }}"
+  # Unknown/unavailable person states count as home, so a tracker outage never
+  # switches the house into away behaviour
+  anyone_home: >
+    {{ persons | count == 0
+       or persons | select('is_state', ['home', 'unknown', 'unavailable']) | list | count > 0 }}
+  occupied: "{{ occupancy_sensors | select('is_state', 'on') | list | count > 0 }}"
+  lights_on: "{{ lights | select('is_state', 'on') | list }}"
+  dark: >
+    {% set lux = states(lux_sensor) if lux_sensor else 'unknown' %}
+    {% if lux | is_number %}
+      {{ lux | float < lux_threshold | float }}
+    {% else %}
+      {{ state_attr('sun.sun', 'elevation') | float(90) < elevation_threshold | float }}
+    {% endif %}
+  elevation: "{{ state_attr('sun.sun', 'elevation') | float(0) }}"
+  tier: >-
+    {%- if sleeping and not is_bedroom -%}sleep
+    {%- elif elevation >= elevation_threshold | float -%}day
+    {%- elif elevation >= night_elevation | float -%}twilight
+    {%- else -%}night{%- endif -%}
+  target_brightness: >
+    {{ {'sleep': sleep_brightness, 'day': day_brightness,
+        'twilight': twilight_brightness, 'night': night_brightness}[tier] | int }}
+  target_kelvin: >
+    {{ {'sleep': night_kelvin, 'day': day_kelvin,
+        'twilight': twilight_kelvin, 'night': night_kelvin}[tier] | int }}
+  light_data: >
+    {% set d = {'brightness_pct': target_brightness, 'transition': transition} %}
+    {% if use_color_temp %}{% set d = dict(d, color_temp_kelvin=target_kelvin) %}{% endif %}
+    {{ d }}
+
+conditions:
+  - condition: template
+    value_template: "{{ override_entity == '' or not is_state(override_entity, 'on') }}"
+
+actions:
+  - choose:
+      # Occupancy detected, room got dark while occupied, or re-evaluation of an
+      # occupied dark room -> turn on
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ (trigger.id == 'occupied'
+                  or (trigger.id in ['became_dark', 'reconcile'] and occupied))
+                 and anyone_home and dark and lights_on | count == 0
+                 and not (sleeping and is_bedroom) }}
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ lights }}"
+            data: "{{ light_data }}"
+
+      # Every sensor clear for the timeout, or re-evaluation of an empty room
+      # (only once all sensors report, so a restart doesn't darken an occupied room) -> off
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ (trigger.id == 'vacant'
+                  or (trigger.id == 'reconcile'
+                      and occupancy_sensors | select('is_state', ['unknown', 'unavailable'])
+                          | list | count == 0))
+                 and not occupied and lights_on | count > 0 }}
+        sequence:
+          - action: light.turn_off
+            target:
+              entity_id: "{{ lights_on }}"
+            data:
+              transition: "{{ transition }}"
+
+      # Went to sleep -> dim any lit lights outside the bedroom
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id == 'sleep_on' and not is_bedroom and lights_on | count > 0 }}"
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ lights_on }}"
+            data: "{{ light_data }}"
+
+      # Woke up in an occupied, dark room with the lights off -> turn on
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id == 'sleep_off' and wake_lights and not sleeping
+                 and anyone_home and occupied and dark and lights_on | count == 0 }}
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ lights }}"
+            data: "{{ light_data }}"
+
+      # Woke up (non-bedroom), or sun moved to another tier -> restore normal
+      # level on lit lights
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ ((trigger.id == 'sleep_off' and not is_bedroom) or trigger.id == 'tier_change')
+                 and not sleeping and lights_on | count > 0 }}
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ lights_on }}"
+            data: "{{ light_data }}"
+
+      # Nobody home -> turn everything off
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id == 'away' and not anyone_home and lights_on | count > 0 }}"
+        sequence:
+          - action: light.turn_off
+            target:
+              entity_id: "{{ lights_on }}"
