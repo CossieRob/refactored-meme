@@ -33,7 +33,6 @@ automation:
         occupancy_sensors:
           - binary_sensor.lounge_motion_occupancy
           - binary_sensor.everything_presence_lite_fa3d18_occupancy
-          - binary_sensor.lounge_rear_window_motion
         lux_sensor: sensor.everything_presence_lite_fa3d18_illuminance
         vacancy_timeout: 10
 
