@@ -4,8 +4,7 @@
 # in configuration.yaml) and copy the blueprint to
 # config/blueprints/automation/cossierob/whole_house_lighting.yaml
 #
-# Entity IDs below were derived from the entity names in Home Assistant; confirm
-# them in Settings -> Devices & services -> Entities before loading.
+# All entity IDs below have been checked against Home Assistant.
 #
 # Disable the existing "Stairs Lamp On at Sunset" automation, otherwise it will
 # fight the Landing & Stairs automation below.
@@ -33,9 +32,8 @@ automation:
           - light.lounge_rear_lamp
         occupancy_sensors:
           - binary_sensor.lounge_motion_occupancy
-          - binary_sensor.lounge_presence_occupancy
-          - binary_sensor.lounge_rear_window_motion
-        lux_sensor: sensor.lounge_presence_illuminance
+          - binary_sensor.everything_presence_lite_fa3d18_occupancy
+        lux_sensor: sensor.everything_presence_lite_fa3d18_illuminance
         vacancy_timeout: 10
 
   - id: whole_house_lighting_dining_room
@@ -47,8 +45,8 @@ automation:
         lights: [light.dining_room_light]
         occupancy_sensors:
           - binary_sensor.dining_room_motion
-          - binary_sensor.dining_room_presence_occupancy
-        lux_sensor: sensor.dining_room_presence_illuminance
+          - binary_sensor.everything_presence_lite_64adcc_occupancy
+        lux_sensor: sensor.everything_presence_lite_64adcc_illuminance
         vacancy_timeout: 5
 
   - id: whole_house_lighting_hallway
@@ -98,10 +96,10 @@ automation:
         occupancy_sensors:
           - binary_sensor.office_motion
           - binary_sensor.office_motion_occupancy
-          - binary_sensor.desk_presence_occupancy
+          - binary_sensor.everything_presence_lite_f1bd7c_occupancy
           - binary_sensor.office_window_motion
-          - binary_sensor.loft_motion
-        lux_sensor: sensor.desk_presence_illuminance
+          - binary_sensor.3d_printer_motion # "Loft Motion"
+        lux_sensor: sensor.everything_presence_lite_f1bd7c_illuminance
         vacancy_timeout: 10
 
   - id: whole_house_lighting_bedroom
@@ -115,8 +113,8 @@ automation:
         lights: [light.bedroom_light, light.bedroom_lamp]
         occupancy_sensors:
           - binary_sensor.bedroom_motion_occupancy
-          - binary_sensor.bedroom_presence_occupancy
-        lux_sensor: sensor.bedroom_presence_illuminance
+          - binary_sensor.everything_presence_lite_2fbc58_occupancy
+        lux_sensor: sensor.everything_presence_lite_2fbc58_illuminance
         night_brightness: 30
         vacancy_timeout: 10
 
