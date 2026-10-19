@@ -138,7 +138,6 @@ automation:
           - binary_sensor.office_motion
           - binary_sensor.office_motion_occupancy
           - binary_sensor.everything_presence_lite_f1bd7c_occupancy
-          - binary_sensor.office_window_motion
           - binary_sensor.3d_printer_motion # "Loft Motion"
         lux_sensor: sensor.everything_presence_lite_f1bd7c_illuminance
         vacancy_timeout: 10
