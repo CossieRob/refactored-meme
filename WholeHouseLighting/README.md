@@ -5,7 +5,7 @@ Lighting for every room, driven by occupancy. It takes into account whether you 
 | File | What it is |
 |---|---|
 | `whole_house_lighting.yaml` | Blueprint for one room. Make one automation from it per room. |
-| `whole_house_lighting_package.yaml` | Package with the override helper plus an automation for each room (Lounge, Dining, Hallway, Cupboard, Landing/Stairs, Office, Bedroom, Spare, Junk, Toilet). |
+| `whole_house_lighting_package.yaml` | Package with the override helper plus an automation for each room (Lounge main lights, Lounge Lamp, Lounge Rear Lamp, Loft, Dining, Hallway, Cupboard, Landing/Stairs, Office, Bedroom, Spare, Junk, Toilet). |
 
 ## Behaviour
 
@@ -27,6 +27,8 @@ Lighting for every room, driven by occupancy. It takes into account whether you 
 Lux only decides whether lights turn on. Once they're on, the lights themselves raise the lux reading, so lux is never used to turn them off. That avoids flicker loops.
 
 If any light in a room is already on, motion won't change its brightness, so lights you set by hand aren't overridden.
+
+**Lounge:** the Lounge Lamp follows the presence sensor's Couch zone, and the Lounge Rear Lamp follows its Sofa zone. While either zone is occupied, Lounge Light 1 and 2 stay off. They switch off when someone sits down, and come back on once both zones are clear and the room is still occupied and dark. This uses the blueprint's optional `suppress_sensors` input. The Lounge Reading Lamp isn't automated.
 
 ## Install
 

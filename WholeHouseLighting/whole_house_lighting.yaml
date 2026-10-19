@@ -60,6 +60,18 @@ blueprint:
       default: false
       selector:
         boolean:
+    suppress_sensors:
+      name: Suppressing sensors (optional)
+      description: >
+        While any of these sensors is on, this room's lights stay off: they won't
+        turn on, and lit ones turn off when a sensor turns on. When they all clear,
+        the room is re-checked. Use it for main lights that a lamp zone replaces,
+        e.g. sofa or couch occupancy.
+      default: []
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: true
     lux_sensor:
       name: Lux sensor (optional)
       description: Illuminance sensor for this room. If empty or unavailable, sun elevation is used instead.
@@ -194,6 +206,7 @@ trigger_variables:
   sleep_entity: !input sleep_entity
   sleep_state: !input sleep_state
   override_entity: !input override_entity
+  suppress_sensors: !input suppress_sensors
 
 triggers:
   - trigger: state
@@ -241,6 +254,14 @@ triggers:
   - trigger: template
     id: reconcile
     value_template: "{{ override_entity != '' and is_state(override_entity, 'off') }}"
+  - trigger: template
+    id: reconcile
+    value_template: >
+      {{ suppress_sensors | count > 0
+         and suppress_sensors | select('is_state', 'on') | list | count == 0 }}
+  - trigger: template
+    id: suppress_on
+    value_template: "{{ suppress_sensors | select('is_state', 'on') | list | count > 0 }}"
   - trigger: homeassistant
     id: reconcile
     event: start
@@ -279,6 +300,7 @@ variables:
   sleep_entity: !input sleep_entity
   sleep_state: !input sleep_state
   override_entity: !input override_entity
+  suppress_sensors: !input suppress_sensors
   is_bedroom: !input is_bedroom
   wake_lights: !input wake_lights
   night_elevation: !input night_elevation
@@ -298,6 +320,7 @@ variables:
     {{ persons | count == 0
        or persons | select('is_state', ['home', 'unknown', 'unavailable']) | list | count > 0 }}
   occupied: "{{ occupancy_sensors | select('is_state', 'on') | list | count > 0 }}"
+  suppressed: "{{ suppress_sensors | select('is_state', 'on') | list | count > 0 }}"
   lights_on: "{{ lights | select('is_state', 'on') | list }}"
   dark: >
     {% set lux = states(lux_sensor) if lux_sensor else 'unknown' %}
@@ -337,12 +360,23 @@ actions:
               {{ (trigger.id == 'occupied'
                   or (trigger.id in ['became_dark', 'reconcile'] and occupied))
                  and anyone_home and dark and lights_on | count == 0
-                 and not (sleeping and is_bedroom) }}
+                 and not suppressed and not (sleeping and is_bedroom) }}
         sequence:
           - action: light.turn_on
             target:
               entity_id: "{{ lights }}"
             data: "{{ light_data }}"
+
+      # A suppressing sensor turned on (e.g. someone sat on the sofa) -> off
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id == 'suppress_on' and lights_on | count > 0 }}"
+        sequence:
+          - action: light.turn_off
+            target:
+              entity_id: "{{ lights_on }}"
+            data:
+              transition: "{{ transition }}"
 
       # Every sensor clear for the timeout, or re-evaluation of an empty room
       # (only once all sensors report, so a restart doesn't darken an occupied room) -> off
@@ -376,7 +410,8 @@ actions:
           - condition: template
             value_template: >
               {{ trigger.id == 'sleep_off' and wake_lights and not sleeping
-                 and anyone_home and occupied and dark and lights_on | count == 0 }}
+                 and anyone_home and occupied and dark and lights_on | count == 0
+                 and not suppressed }}
         sequence:
           - action: light.turn_on
             target:
