@@ -268,6 +268,12 @@ triggers:
   - trigger: event
     id: reconcile
     event_type: automation_reloaded
+  # The last of the room's sensors came back online (after a restart or a device
+  # reboot), so an empty room can now be confirmed and its lights turned off
+  - trigger: template
+    id: reconcile
+    value_template: >
+      {{ occupancy_sensors | select('is_state', ['unknown', 'unavailable']) | list | count == 0 }}
   # Sun crossing a brightness tier boundary, in either direction
   - trigger: numeric_state
     id: tier_change
