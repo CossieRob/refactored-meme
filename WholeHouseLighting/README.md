@@ -5,7 +5,7 @@ Lighting for every room, driven by occupancy. It takes into account whether you 
 | File | What it is |
 |---|---|
 | `whole_house_lighting.yaml` | Blueprint for one room. Make one automation from it per room. |
-| `whole_house_lighting_package.yaml` | Package with the override helper plus an automation for each room (Lounge, Dining, Hallway, Cupboard, Landing/Stairs, Office, Bedroom, Spare, Junk, Toilet). |
+| `whole_house_lighting_package.yaml` | Package with the override helper plus an automation for each room (Lounge main lights, Lounge Lamp, Lounge Rear Lamp, Loft, Dining, Hallway, Cupboard, Landing/Stairs, Office, Bedroom, Spare, Junk, Toilet). |
 
 ## Behaviour
 
@@ -28,6 +28,8 @@ Lux only decides whether lights turn on. Once they're on, the lights themselves 
 
 If any light in a room is already on, motion won't change its brightness, so lights you set by hand aren't overridden.
 
+**Lounge:** the Lounge Lamp follows the presence sensor's Couch zone, and the Lounge Rear Lamp follows its Sofa zone. While either zone is occupied, Lounge Light 1 and 2 stay off. They switch off when someone sits down, and come back on once both zones are clear and the room is still occupied and dark. This uses the blueprint's optional `suppress_sensors` input. The Lounge Reading Lamp isn't automated.
+
 ## Install
 
 1. Copy `whole_house_lighting.yaml` to `config/blueprints/automation/cossierob/whole_house_lighting.yaml`.
@@ -36,7 +38,7 @@ If any light in a room is already on, motion won't change its brightness, so lig
    homeassistant:
      packages: !include_dir_named packages
    ```
-3. **Disable "Stairs Lamp On at Sunset".** The Landing & Stairs automation now controls the stairs lamp.
+3. **Disable the old automations these replace**, or they'll fight over the same lights: "Stairs Lamp On at Sunset" (now Landing & Stairs) and every "Motion Activated … Light(s)" automation, including "Motion Activated Loft Lights" (now Loft).
 4. Restart, or reload Automations and Input Booleans.
 
 Alternatively, skip the package and create each room from the blueprint in the UI (Settings → Automations → Create → Use blueprint).

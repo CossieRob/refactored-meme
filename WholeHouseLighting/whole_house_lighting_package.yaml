@@ -6,8 +6,9 @@
 #
 # All entity IDs below have been checked against Home Assistant.
 #
-# Disable the existing "Stairs Lamp On at Sunset" automation, otherwise it will
-# fight the Landing & Stairs automation below.
+# Disable the existing "Stairs Lamp On at Sunset" and "Motion Activated ..."
+# automations (including "Motion Activated Loft Lights"), otherwise they will
+# fight the automations below over the same lights.
 
 input_boolean:
   lighting_automation_override:
@@ -25,16 +26,56 @@ automation:
           # iPhone Focus is only used for Sleep, so it can drive sleep mode directly
           sleep_entity: binary_sensor.rob_siphone_focus
           override_entity: input_boolean.lighting_automation_override
+        # Main lights; the lamps below take over while the couch or sofa is in use.
+        # The reading lamp is controlled manually.
         lights:
-          - light.lounge_lights
-          - light.lounge_lamps
-          - light.lounge_reading_lamp
-          - light.lounge_rear_lamp
+          - light.lounge_light_1
+          - light.lounge_light_2
         occupancy_sensors:
           - binary_sensor.lounge_motion_occupancy
           - binary_sensor.everything_presence_lite_fa3d18_occupancy
+        suppress_sensors:
+          - binary_sensor.everything_presence_lite_fa3d18_zone_1_occupancy # Sofa
+          - binary_sensor.everything_presence_lite_fa3d18_zone_2_occupancy # Couch
         lux_sensor: sensor.everything_presence_lite_fa3d18_illuminance
         vacancy_timeout: 10
+
+  - id: whole_house_lighting_lounge_lamp
+    alias: Lighting - Lounge Lamp (Couch)
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.lounge_lamp]
+        occupancy_sensors:
+          - binary_sensor.everything_presence_lite_fa3d18_zone_2_occupancy # Couch
+        lux_sensor: sensor.everything_presence_lite_fa3d18_illuminance
+        vacancy_timeout: 2
+
+  - id: whole_house_lighting_lounge_rear_lamp
+    alias: Lighting - Lounge Rear Lamp (Sofa)
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        lights: [light.lounge_rear_lamp]
+        occupancy_sensors:
+          - binary_sensor.everything_presence_lite_fa3d18_zone_1_occupancy # Sofa
+        lux_sensor: sensor.everything_presence_lite_fa3d18_illuminance
+        vacancy_timeout: 2
+
+  - id: whole_house_lighting_loft
+    alias: Lighting - Loft
+    use_blueprint:
+      path: cossierob/whole_house_lighting.yaml
+      input:
+        <<: *common
+        # Switch exposed as a light, so on/off only
+        lights: [light.loft_loft_power_strip_loft_lights]
+        occupancy_sensors: [binary_sensor.everything_presence_lite_f1b604_occupancy]
+        lux_sensor: sensor.everything_presence_lite_f1b604_illuminance
+        use_color_temp: false
+        vacancy_timeout: 5
 
   - id: whole_house_lighting_dining_room
     alias: Lighting - Dining Room
