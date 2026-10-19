@@ -268,6 +268,16 @@ triggers:
   - trigger: event
     id: reconcile
     event_type: automation_reloaded
+  # Vacancy once every sensor is back online (after a restart or a device reboot)
+  # and has stayed clear for the full timeout. The plain vacancy trigger above
+  # can't catch this, as it already counted the unavailable sensor as clear.
+  - trigger: template
+    id: vacant
+    value_template: >
+      {{ occupancy_sensors | select('is_state', ['unknown', 'unavailable']) | list | count == 0
+         and occupancy_sensors | select('is_state', 'on') | list | count == 0 }}
+    for:
+      minutes: !input vacancy_timeout
   # Sun crossing a brightness tier boundary, in either direction
   - trigger: numeric_state
     id: tier_change
