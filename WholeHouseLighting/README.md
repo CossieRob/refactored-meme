@@ -29,7 +29,7 @@ Lux only decides whether lights turn on. Once they're on, the lights themselves 
 
 If any light in a room is already on, motion won't change its brightness, so lights you set by hand aren't overridden.
 
-**Lounge:** the Lounge Lamp follows the presence sensor's Couch zone, and the Lounge Rear Lamp follows its Sofa zone. While either zone is occupied, Lounge Light 1 and 2 stay off. They switch off when someone sits down, and come back on once both zones have been clear for 2 minutes (`suppress_release_delay`) and the room is still occupied and dark, so a zone briefly losing someone sitting still doesn't switch them back on. This uses the blueprint's optional `suppress_sensors` input. The Lounge Reading Lamp isn't automated.
+**Lounge:** the Lounge Lamp follows the presence sensor's Couch zone, and the Lounge Rear Lamp follows its Sofa zone. While either zone is occupied, Lounge Light 1 and 2 stay off. They switch off when someone sits down, and come back on once both zones have been clear for at least 2 minutes (`suppress_release_delay`; re-checked every minute) and the room is still occupied and dark, so a zone briefly losing someone sitting still doesn't switch them back on. This uses the blueprint's optional `suppress_sensors` input. The Lounge Reading Lamp isn't automated.
 
 ## Install
 

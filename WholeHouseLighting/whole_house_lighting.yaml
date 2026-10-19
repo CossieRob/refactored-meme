@@ -219,6 +219,7 @@ trigger_variables:
   sleep_state: !input sleep_state
   override_entity: !input override_entity
   suppress_sensors: !input suppress_sensors
+  suppress_release_delay: !input suppress_release_delay
 
 triggers:
   - trigger: state
@@ -266,13 +267,22 @@ triggers:
   - trigger: template
     id: reconcile
     value_template: "{{ override_entity != '' and is_state(override_entity, 'off') }}"
+  # Suppression expired: every suppressing sensor clear for the release delay,
+  # judged from last_changed. Time-based templates re-render every minute, so
+  # this also fires after a restart or a sensor reconnecting mid-delay.
   - trigger: template
     id: reconcile
     value_template: >
-      {{ suppress_sensors | count > 0
-         and suppress_sensors | select('is_state', 'on') | list | count == 0 }}
-    for:
-      minutes: !input suppress_release_delay
+      {% set ns = namespace(on=false) %}
+      {% for e in suppress_sensors %}
+        {% if is_state(e, 'on')
+              or (is_state(e, 'off')
+                  and (now() - states[e].last_changed).total_seconds()
+                      < suppress_release_delay * 60) %}
+          {% set ns.on = true %}
+        {% endif %}
+      {% endfor %}
+      {{ suppress_sensors | count > 0 and not ns.on }}
   - trigger: template
     id: suppress_on
     value_template: "{{ suppress_sensors | select('is_state', 'on') | list | count > 0 }}"
@@ -346,14 +356,14 @@ variables:
        or persons | select('is_state', ['home', 'unknown', 'unavailable']) | list | count > 0 }}
   occupied: "{{ occupancy_sensors | select('is_state', 'on') | list | count > 0 }}"
   # Still suppressed while any sensor is on, or turned off less than the release
-  # delay ago (1 s slack so the delayed re-check itself isn't still suppressed)
+  # delay ago (same rule as the expiry trigger)
   suppressed: >
     {% set ns = namespace(on=false) %}
     {% for e in suppress_sensors %}
       {% if is_state(e, 'on')
             or (is_state(e, 'off')
                 and (now() - states[e].last_changed).total_seconds()
-                    < suppress_release_delay * 60 - 1) %}
+                    < suppress_release_delay * 60) %}
         {% set ns.on = true %}
       {% endif %}
     {% endfor %}
