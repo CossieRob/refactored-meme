@@ -14,8 +14,56 @@ input_boolean:
   lighting_automation_override:
     name: Lighting Automation Override
     icon: mdi:lightbulb-off-outline
+  # Debounced copy of the iPhone Focus sensor, which can flap on and off
+  sleep_mode:
+    name: Sleep Mode
+    icon: mdi:power-sleep
 
 automation:
+  # Sleep Mode follows the iPhone Focus sensor once it has held a state for
+  # 2 minutes, so brief flickers don't dim the house or wake it back up
+  - id: whole_house_lighting_sleep_mode
+    alias: Lighting - Sleep Mode
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.rob_siphone_focus
+        to: "on"
+        for:
+          minutes: 2
+      - trigger: state
+        entity_id: binary_sensor.rob_siphone_focus
+        to: "off"
+        for:
+          minutes: 2
+      # The state triggers' timers don't survive a restart; re-sync afterwards
+      - trigger: homeassistant
+        event: start
+    actions:
+      - if:
+          - condition: template
+            value_template: "{{ trigger.platform == 'homeassistant' }}"
+        then:
+          - delay:
+              minutes: 2
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.rob_siphone_focus
+                state: "on"
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.sleep_mode
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.rob_siphone_focus
+                state: "off"
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.sleep_mode
+
   - id: whole_house_lighting_lounge
     alias: Lighting - Lounge
     use_blueprint:
@@ -23,8 +71,8 @@ automation:
       input:
         <<: &common
           persons: [person.rob]
-          # iPhone Focus is only used for Sleep, so it can drive sleep mode directly
-          sleep_entity: binary_sensor.rob_siphone_focus
+          # Debounced iPhone Focus (see Lighting - Sleep Mode above)
+          sleep_entity: input_boolean.sleep_mode
           override_entity: input_boolean.lighting_automation_override
         # Main lights; the lamps below take over while the couch or sofa is in use.
         # The reading lamp is controlled manually.
