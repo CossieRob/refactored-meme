@@ -72,7 +72,9 @@ automation:
         <<: *common
         # Switch exposed as a light, so on/off only
         lights: [light.loft_loft_power_strip_loft_lights]
-        occupancy_sensors: [binary_sensor.everything_presence_lite_f1b604_occupancy]
+        occupancy_sensors:
+          - binary_sensor.everything_presence_lite_f1b604_occupancy
+          - binary_sensor.3d_printer_motion # "Loft Motion"
         lux_sensor: sensor.everything_presence_lite_f1b604_illuminance
         use_color_temp: false
         vacancy_timeout: 5
@@ -138,8 +140,6 @@ automation:
           - binary_sensor.office_motion
           - binary_sensor.office_motion_occupancy
           - binary_sensor.everything_presence_lite_f1bd7c_occupancy
-          - binary_sensor.office_window_motion
-          - binary_sensor.3d_printer_motion # "Loft Motion"
         lux_sensor: sensor.everything_presence_lite_f1bd7c_illuminance
         vacancy_timeout: 10
 
