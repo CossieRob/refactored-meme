@@ -41,6 +41,12 @@ If any light in a room is already on, motion won't change its brightness, so lig
 
 Alternatively, skip the package and create each room from the blueprint in the UI (Settings → Automations → Create → Use blueprint).
 
+## Updating
+
+- **Blueprint:** the blueprint has a `source_url` pointing at this repo, so go to Settings → Automations & Scenes → Blueprints, open the ⋮ menu on "Whole House Lighting - Room Controller" and choose **Re-import blueprint**. Then reload Automations. Home Assistant doesn't check for updates on its own, so do this whenever the blueprint changes here.
+- **Package:** Home Assistant can't import packages, so copy `whole_house_lighting_package.yaml` over your copy in `config/packages/` again, then reload Automations and Input Booleans. It only holds the per-room settings, so it changes less often.
+- **Folder name:** the package expects the blueprint at exactly `cossierob/whole_house_lighting.yaml`, and the name is case-sensitive. Importing the blueprint fresh from GitHub saves it under `CossieRob/` instead, so rename that folder to lowercase. Re-import keeps the existing path.
+
 ## iPhone Sleep focus
 
 Sleep mode is driven by the Companion app's `binary_sensor.rob_siphone_focus`. That sensor is `on` for *any* focus, which is fine here because Focus is only used for Sleep.
