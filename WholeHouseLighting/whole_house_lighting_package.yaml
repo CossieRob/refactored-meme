@@ -6,8 +6,9 @@
 #
 # All entity IDs below have been checked against Home Assistant.
 #
-# Disable the existing "Stairs Lamp On at Sunset" automation, otherwise it will
-# fight the Landing & Stairs automation below.
+# Disable the existing "Stairs Lamp On at Sunset" and "Motion Activated ..."
+# automations (including "Motion Activated Loft Lights"), otherwise they will
+# fight the automations below over the same lights.
 
 input_boolean:
   lighting_automation_override:

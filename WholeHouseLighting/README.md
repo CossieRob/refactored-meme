@@ -38,7 +38,7 @@ If any light in a room is already on, motion won't change its brightness, so lig
    homeassistant:
      packages: !include_dir_named packages
    ```
-3. **Disable "Stairs Lamp On at Sunset".** The Landing & Stairs automation now controls the stairs lamp.
+3. **Disable the old automations these replace**, or they'll fight over the same lights: "Stairs Lamp On at Sunset" (now Landing & Stairs) and every "Motion Activated … Light(s)" automation, including "Motion Activated Loft Lights" (now Loft).
 4. Restart, or reload Automations and Input Booleans.
 
 Alternatively, skip the package and create each room from the blueprint in the UI (Settings → Automations → Create → Use blueprint).

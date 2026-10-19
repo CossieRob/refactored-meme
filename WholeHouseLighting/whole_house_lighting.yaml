@@ -367,10 +367,13 @@ actions:
               entity_id: "{{ lights }}"
             data: "{{ light_data }}"
 
-      # A suppressing sensor turned on (e.g. someone sat on the sofa) -> off
+      # A suppressing sensor turned on (e.g. someone sat on the sofa), or the room
+      # is re-checked while one is on -> off
       - conditions:
           - condition: template
-            value_template: "{{ trigger.id == 'suppress_on' and lights_on | count > 0 }}"
+            value_template: >
+              {{ (trigger.id == 'suppress_on' or (trigger.id == 'reconcile' and suppressed))
+                 and lights_on | count > 0 }}
         sequence:
           - action: light.turn_off
             target:
