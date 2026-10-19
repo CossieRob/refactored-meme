@@ -54,7 +54,7 @@ Alternatively, skip the package and create each room from the blueprint in the U
 
 Sleep mode comes from the Companion app's `binary_sensor.rob_siphone_focus`. That sensor is `on` for *any* focus, which is fine here because Focus is only used for Sleep.
 
-The sensor can flap on and off several times a minute, so the rooms don't use it directly. The package's **Lighting - Sleep Mode** automation copies it into `input_boolean.sleep_mode` once it has held a state for **2 minutes**. Shorter flickers are ignored, and after a restart it re-syncs once 2 minutes have passed. Every room's `sleep_entity` is `input_boolean.sleep_mode`. Point any other automations that react to Focus (blinds, heating) at it too, so they stop flapping as well.
+The sensor can flap on and off several times a minute, so the rooms don't use it directly. The package's **Lighting - Sleep Mode** automation copies it into `input_boolean.sleep_mode` once it has held a state for **2 minutes**. Shorter flickers are ignored, and after a restart or automations reload it re-syncs once Focus has held its state for 2 minutes. Every room's `sleep_entity` is `input_boolean.sleep_mode`. Point any other automations that react to Focus (blinds, heating) at it too, so they stop flapping as well.
 
 If you later add other focus modes (Work, Driving…), switch to an iOS Shortcuts automation instead:
 

@@ -36,21 +36,27 @@ automation:
         to: "off"
         for:
           minutes: 2
-      # The state triggers' timers don't survive a restart; re-sync afterwards
+      # The state triggers' timers don't survive a restart or reload; re-sync
+      # afterwards
       - trigger: homeassistant
         event: start
+      - trigger: event
+        event_type: automation_reloaded
     actions:
       - if:
           - condition: template
-            value_template: "{{ trigger.platform == 'homeassistant' }}"
+            value_template: "{{ trigger.platform in ['homeassistant', 'event'] }}"
         then:
           - delay:
               minutes: 2
+      # Only copy a Focus state that has held for the full 2 minutes
       - choose:
           - conditions:
               - condition: state
                 entity_id: binary_sensor.rob_siphone_focus
                 state: "on"
+                for:
+                  minutes: 2
             sequence:
               - action: input_boolean.turn_on
                 target:
@@ -59,6 +65,8 @@ automation:
               - condition: state
                 entity_id: binary_sensor.rob_siphone_focus
                 state: "off"
+                for:
+                  minutes: 2
             sequence:
               - action: input_boolean.turn_off
                 target:
