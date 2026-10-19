@@ -151,7 +151,8 @@ automation:
         <<: *common
         is_bedroom: true
         wake_lights: true
-        lights: [light.bedroom_light, light.bedroom_lamp]
+        # Bedroom Lamp is controlled manually
+        lights: [light.bedroom_light]
         occupancy_sensors:
           - binary_sensor.bedroom_motion_occupancy
           - binary_sensor.everything_presence_lite_2fbc58_occupancy
