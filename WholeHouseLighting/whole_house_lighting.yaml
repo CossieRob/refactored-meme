@@ -72,6 +72,18 @@ blueprint:
         entity:
           domain: binary_sensor
           multiple: true
+    suppress_release_delay:
+      name: Suppression release delay
+      description: >
+        How long every suppressing sensor must stay clear before the lights may come
+        back on. Rides out brief drop-outs (presence zones often lose someone sitting
+        still for a few seconds); match it to the lamps' vacancy timeout.
+      default: 2
+      selector:
+        number:
+          min: 0
+          max: 30
+          unit_of_measurement: min
     lux_sensor:
       name: Lux sensor (optional)
       description: Illuminance sensor for this room. If empty or unavailable, sun elevation is used instead.
@@ -259,6 +271,8 @@ triggers:
     value_template: >
       {{ suppress_sensors | count > 0
          and suppress_sensors | select('is_state', 'on') | list | count == 0 }}
+    for:
+      minutes: !input suppress_release_delay
   - trigger: template
     id: suppress_on
     value_template: "{{ suppress_sensors | select('is_state', 'on') | list | count > 0 }}"
@@ -311,6 +325,7 @@ variables:
   sleep_state: !input sleep_state
   override_entity: !input override_entity
   suppress_sensors: !input suppress_sensors
+  suppress_release_delay: !input suppress_release_delay
   is_bedroom: !input is_bedroom
   wake_lights: !input wake_lights
   night_elevation: !input night_elevation
@@ -330,7 +345,19 @@ variables:
     {{ persons | count == 0
        or persons | select('is_state', ['home', 'unknown', 'unavailable']) | list | count > 0 }}
   occupied: "{{ occupancy_sensors | select('is_state', 'on') | list | count > 0 }}"
-  suppressed: "{{ suppress_sensors | select('is_state', 'on') | list | count > 0 }}"
+  # Still suppressed while any sensor is on, or turned off less than the release
+  # delay ago (1 s slack so the delayed re-check itself isn't still suppressed)
+  suppressed: >
+    {% set ns = namespace(on=false) %}
+    {% for e in suppress_sensors %}
+      {% if is_state(e, 'on')
+            or (is_state(e, 'off')
+                and (now() - states[e].last_changed).total_seconds()
+                    < suppress_release_delay * 60 - 1) %}
+        {% set ns.on = true %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.on }}
   lights_on: "{{ lights | select('is_state', 'on') | list }}"
   dark: >
     {% set lux = states(lux_sensor) if lux_sensor else 'unknown' %}
