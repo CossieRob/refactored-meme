@@ -14,6 +14,7 @@ blueprint:
       and never switched on automatically while you sleep.
     - Away: lights are switched off when nobody is home and motion is ignored.
   domain: automation
+  source_url: https://github.com/CossieRob/refactored-meme/blob/main/WholeHouseLighting/whole_house_lighting.yaml
   input:
     lights:
       name: Lights
